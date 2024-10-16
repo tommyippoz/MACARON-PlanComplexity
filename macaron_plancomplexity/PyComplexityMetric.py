@@ -3,9 +3,9 @@ import numpy as np
 
 from typing import Dict, List
 
-from macaron_plancomplexity.complexity_lib.ApertureMetric import EdgeMetricBase
-from macaron_plancomplexity.complexity_lib.EsapiApertureMetric import ComplexityMetric
-from macaron_plancomplexity.complexity_lib.PyApertureMetric import PyAperture, PyMetersetsFromMetersetWeightsCreator, \
+from macaron_plancomplexity.ApertureMetric import EdgeMetricBase
+from macaron_plancomplexity.EsapiApertureMetric import ComplexityMetric
+from macaron_plancomplexity.PyApertureMetric import PyAperture, PyMetersetsFromMetersetWeightsCreator, \
     PyAperturesFromBeamCreator
 
 

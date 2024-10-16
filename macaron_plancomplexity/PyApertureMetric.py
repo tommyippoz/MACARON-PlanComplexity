@@ -4,7 +4,7 @@ from pydicom.dataset import Dataset
 
 import numpy as np
 
-from macaron_plancomplexity.complexity_lib.ApertureMetric import LeafPair, Jaw, Aperture
+from macaron_plancomplexity.ApertureMetric import LeafPair, Jaw, Aperture
 
 
 class PyLeafPair(LeafPair):

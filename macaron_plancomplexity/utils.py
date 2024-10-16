@@ -5,7 +5,7 @@ import shutil
 import pydicom
 from pydicom import FileDataset
 
-from macaron_plancomplexity.dicom_manager.DICOMType import DICOMType
+from macaron_plancomplexity.DICOMType import DICOMType
 
 
 def clear_folder(folder: str) -> None:
@@ -25,7 +25,7 @@ def clear_folder(folder: str) -> None:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 
-def load_DICOM(file_path: str, sanitize:bool=True):
+def load_DICOM(file_path: str, sanitize: bool = True):
     """
     Loads a DICOM object from a file
     :param file_path: path to the DICOM file
@@ -104,9 +104,12 @@ def extractPatientData(dicom_ob: FileDataset) -> dict:
     :param dicom_ob: the FileDataset from the DICOM
     :return: a dictionary of patient data
     """
-    patient_data = {"ID": dicom_ob.PatientID,
-                    "Sex": dicom_ob.PatientSex,
-                    "BirthDate": dicom_ob.PatientBirthDate}
+    try:
+        patient_data = {"ID": dicom_ob.PatientID,
+                        "Sex": dicom_ob.PatientSex,
+                        "BirthDate": dicom_ob.PatientBirthDate}
+    except:
+        patient_data = None
     return patient_data
 
 
@@ -116,11 +119,14 @@ def extractDoseData(dicom_ob: FileDataset) -> dict:
     :param dicom_ob: the FileDataset from the DICOM
     :return: a dictionary of dose data
     """
-    dose_data = {"GridScaling": dicom_ob.DoseGridScaling,
-                 "SumType": dicom_ob.DoseSummationType,
-                 "Type": dicom_ob.DoseType,
-                 "Units": dicom_ob.DoseUnits,
-                 "RTPlanSequence": dicom_ob.ReferencedRTPlanSequence}
+    try:
+        dose_data = {"GridScaling": dicom_ob.DoseGridScaling,
+                     "SumType": dicom_ob.DoseSummationType,
+                     "Type": dicom_ob.DoseType,
+                     "Units": dicom_ob.DoseUnits,
+                     "RTPlanSequence": dicom_ob.ReferencedRTPlanSequence}
+    except:
+        dose_data = None
     return dose_data
 
 
@@ -140,10 +146,13 @@ def extractManufacturerData(dicom_ob: FileDataset) -> dict:
     :param dicom_ob: the FileDataset from the DICOM
     :return: a dictionary of manufacturer data
     """
-    man_data = {"Name": dicom_ob.Manufacturer,
-                "ModelName": dicom_ob.ManufacturerModelName,
-                "SW_Version": dicom_ob.SoftwareVersions,
-                "CharSet": dicom_ob.SpecificCharacterSet}
+    try:
+        man_data = {"Name": dicom_ob.Manufacturer,
+                    "ModelName": dicom_ob.ManufacturerModelName,
+                    "SW_Version": dicom_ob.SoftwareVersions,
+                    "CharSet": dicom_ob.SpecificCharacterSet}
+    except:
+        man_data = None
     return man_data
 
 
@@ -153,14 +162,17 @@ def extractStudyData(dicom_ob: FileDataset) -> dict:
     :param dicom_ob: the FileDataset from the DICOM
     :return: a dictionary of patient data
     """
-    study_data = {"ID": dicom_ob.StudyID,
-                  "UID": dicom_ob.StudyInstanceUID,
-                  "Time": dicom_ob.StudyTime,
-                  "Date": dicom_ob.StudyDate,
-                  "Modality": dicom_ob.Modality,
-                  "NumFrames": dicom_ob.NumberOfFrames,
-                  "PhotometricInterpretation": dicom_ob.PhotometricInterpretation,
-                  "Correction": dicom_ob.TissueHeterogeneityCorrection}
+    try:
+        study_data = {"ID": dicom_ob.StudyID,
+                      "UID": dicom_ob.StudyInstanceUID,
+                      "Time": dicom_ob.StudyTime,
+                      "Date": dicom_ob.StudyDate,
+                      "Modality": dicom_ob.Modality,
+                      "NumFrames": dicom_ob.NumberOfFrames,
+                      "PhotometricInterpretation": dicom_ob.PhotometricInterpretation,
+                      "Correction": dicom_ob.TissueHeterogeneityCorrection}
+    except:
+        study_data = None
     return study_data
 
 
@@ -170,26 +182,14 @@ def extractImageData(dicom_ob: FileDataset) -> dict:
     :param dicom_ob: the FileDataset from the DICOM
     :return: a dictionary of image data
     """
-    image_data = {"Orientation": dicom_ob.ImageOrientationPatient,
-                  "Position": dicom_ob.ImagePositionPatient,
-                  "FrameIncrementPointer": dicom_ob.FrameIncrementPointer,
-                  "GridOffsetVector": dicom_ob.GridFrameOffsetVector}
+    try:
+        image_data = {"Orientation": dicom_ob.ImageOrientationPatient,
+                      "Position": dicom_ob.ImagePositionPatient,
+                      "FrameIncrementPointer": dicom_ob.FrameIncrementPointer,
+                      "GridOffsetVector": dicom_ob.GridFrameOffsetVector}
+    except:
+        image_data = None
     return image_data
-
-
-def get_plan(rtp_file):
-    """
-    Gets the plan from an RT_PLAN DICOM object
-    :param rtp_file: the path to the RT_PLAN file
-    :return: a dictionary with the plan, and a string description
-    """
-    rtp = dicomparser.DicomParser(rtp_file)
-    if get_DICOM_type(rtp.ds) == DICOMType.RT_PLAN:
-        plan = rtp.GetPlan()
-        rt_plan = rtp.GetReferencedRTPlan()
-        return plan, rt_plan
-    else:
-        return {}, {}
 
 
 def write_dict(dict_obj: dict, filename: str, header=None):

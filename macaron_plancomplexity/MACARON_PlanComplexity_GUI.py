@@ -1,5 +1,5 @@
-import configparser
 import os
+import shutil
 
 import tkinter
 import tkinter.font
@@ -8,33 +8,33 @@ from tkinter import ttk
 from tkinter.filedialog import askdirectory
 
 from PIL import Image, ImageTk
-#from PIL import ImageTk
 
 from macaron_plancomplexity.StudyType import StudyType
-from macaron_plancomplexity.dicom_manager.DICOMItem import DICOMItem
+from macaron_plancomplexity.DICOMItem import DICOMItem
 from macaron_plancomplexity.utils import clear_folder
 
-TMP_FOLDER = "tmp"
-
-OUT_FOLDER = "output"
+OUT_FOLDER = ".\\output"
 
 
-def find_DICOM_groups(main_folder, tmp_folder):
+def find_DICOM_groups(main_folder):
     """
     Returns an array of DICOMItem in the main folder
     @param main_folder: root folder
     @return: array of dicom groups
     """
     plans = []
-    rec_find_DICOM_groups(main_folder, tmp_folder, plans)
+    rec_find_DICOM_groups(main_folder, plans)
     return plans
 
 
-def rec_find_DICOM_groups(main_path, tmp_folder, plans):
+def rec_find_DICOM_groups(main_path, plans):
+    """
+    Supports the function to find all RTPlans in a folder
+    """
     if os.path.isdir(main_path):
         for sub_item in os.listdir(main_path):
             subfolder_path = os.path.join(main_path, sub_item)
-            rec_find_DICOM_groups(subfolder_path, tmp_folder, plans)
+            rec_find_DICOM_groups(subfolder_path, plans)
     else:
         if os.path.isfile(main_path) and main_path.endswith(".dcm"):
             new_item = DICOMItem(main_path)
@@ -46,7 +46,7 @@ def rec_find_DICOM_groups(main_path, tmp_folder, plans):
 class MacaronGUI(tkinter.Frame):
 
     @classmethod
-    def main(cls, config):
+    def main(cls):
         root = Tk()
         root.title('MACARON GUI')
         root.iconbitmap('../resources/MACARON_nobackground.ico')
@@ -54,11 +54,11 @@ class MacaronGUI(tkinter.Frame):
         root.resizable(False, False)
         default_font = tkinter.font.nametofont("TkDefaultFont")
         default_font.configure(size=11)
-        cls(root, config)
+        cls(root)
         root.eval('tk::PlaceWindow . center')
         root.mainloop()
 
-    def __init__(self, root, config):
+    def __init__(self, root):
         super().__init__(root)
         self.checkboxes = [
             ["Plan", BooleanVar(value=True), StudyType.PLAN_DETAIL],
@@ -142,7 +142,7 @@ class MacaronGUI(tkinter.Frame):
         folder = askdirectory(initialdir="./")
         if folder is not None:
             self.dicom_folder = folder
-            patients = find_DICOM_groups(self.dicom_folder, TMP_FOLDER)
+            patients = find_DICOM_groups(self.dicom_folder)
             if patients is not None:
                 self.patients = patients
                 self.group_label['text'] = str(len(patients))
@@ -189,9 +189,9 @@ class MacaronGUI(tkinter.Frame):
                 info_label['text'] = "Processing '" + patient.get_name() + "' for study " + \
                                      name + "' [" + str(study_index) + "/" + str(len(studies)) + "]"
                 if self.create_data.get() is True:
-                    patient.report(studies=[study], output_folder="output", clean_folder=clean_folder)
-                    print("Results of '" + str(
-                        study) + "' for patient '" + patient.get_name() + "' were computed and stored as TXT/CSV files or Images")
+                    patient.report(studies=[study], output_folder=OUT_FOLDER, clean_folder=clean_folder)
+                    print("Results of '" + str(study) + "' for patient '" + patient.get_name() +
+                          "' were computed and stored as TXT/CSV files or Images")
                 progress += progress_step
                 progress_var.set(progress)
                 clean_folder = False
@@ -204,20 +204,11 @@ class MacaronGUI(tkinter.Frame):
 
 if __name__ == "__main__":
 
-    # Load configuration parameters
-    config = configparser.ConfigParser()
-    config.read('../plancomplexity.config')
-
-    # Checking and clearing TMP_FOLDER
-    if not os.path.exists(TMP_FOLDER):
-        os.makedirs(TMP_FOLDER)
-    else:
-        clear_folder(TMP_FOLDER)
-
     # Checking and clearing OUT_FOLDER
     if not os.path.exists(OUT_FOLDER):
         os.makedirs(OUT_FOLDER)
     else:
         clear_folder(OUT_FOLDER)
+    shutil.copyfile('../resources/metric_explanations.txt', os.path.join(OUT_FOLDER, "output_explanations.txt"))
 
-    MacaronGUI.main(config)
+    MacaronGUI.main()

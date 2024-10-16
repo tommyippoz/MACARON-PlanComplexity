@@ -1,6 +1,6 @@
 from pydicom import FileDataset
 
-from macaron_plancomplexity.dicom_manager.DICOMType import DICOMType
+from macaron_plancomplexity.DICOMType import DICOMType
 from macaron_plancomplexity.utils import load_DICOM
 
 

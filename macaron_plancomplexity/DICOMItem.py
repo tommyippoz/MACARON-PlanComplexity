@@ -2,9 +2,10 @@ import os
 
 from macaron_plancomplexity.StudyType import StudyType
 from macaron_plancomplexity.complexity_utils import calculate_RTPlan_lib_metrics, calculate_RTPlan_custom_metrics
-from macaron_plancomplexity.dicom_manager.DICOMFileObject import DICOMFileObject
-from macaron_plancomplexity.dicom_manager.DICOMType import DICOMType
-from macaron_plancomplexity.utils import load_DICOM, extractPatientData, clear_folder, write_dict
+from macaron_plancomplexity.DICOMFileObject import DICOMFileObject
+from macaron_plancomplexity.DICOMType import DICOMType
+from macaron_plancomplexity.utils import load_DICOM, extractPatientData, clear_folder, write_dict, \
+    extractManufacturerData, extractStudyData, extractImageData
 
 
 class DICOMItem:
@@ -56,7 +57,7 @@ class DICOMItem:
         """
         Extracts patient data from RTPlan
         """
-        if self.rtp_objects is not None:
+        if self.rtp_object is not None:
             return extractPatientData(self.rtp_object.get_object())
         else:
             return None
@@ -68,29 +69,18 @@ class DICOMItem:
         """
         if self.rtp_object is not None:
             self.plan_details = {}
-            # rt_plans = []
-            # for plan in self.rtp_objects:
-            #     plan_det, rt_plan = DICOM_utils.get_plan(plan.get_file_name())
-            #     if hasattr(plan_det, "date") and len(plan_det["date"]) == 0:
-            #         plan_det["date"] = plan.get_object().InstanceCreationDate
-            #     else:
-            #         plan_det["date"] = "1900-01-01"
-            #     if hasattr(plan_det, "time") and len(plan_det["time"]) == 0:
-            #         plan_det["time"] = plan.get_object().InstanceCreationTime
-            #     else:
-            #         plan_det["time"] = 1
-            #     if hasattr(plan_det, "label") and len(plan_det["label"]) == 0:
-            #         plan_det["label"] = plan.get_object().RTPlanLabel
-            #     else:
-            #         plan_det["label"] = self.name
-            #     if hasattr(plan_det, "name") and len(plan_det["name"]) == 0:
-            #         plan_det["name"] = plan.get_object().RTPlanName
-            #     else:
-            #         plan_det["name"] = self.name
-            #
-            #     self.plan_details.append(plan_det)
-            #     rt_plans.append(rt_plan)
-
+            new_dict = self.get_patient_info()
+            if new_dict is not None:
+                self.plan_details.update(new_dict)
+            new_dict = extractManufacturerData(self.rtp_object.get_object())
+            if new_dict is not None:
+                self.plan_details.update(new_dict)
+            new_dict = extractStudyData(self.rtp_object.get_object())
+            if new_dict is not None:
+                self.plan_details.update(new_dict)
+            new_dict = extractImageData(self.rtp_object.get_object())
+            if new_dict is not None:
+                self.plan_details.update(new_dict)
             return self.plan_details
         else:
             return None
@@ -103,18 +93,20 @@ class DICOMItem:
         :param metrics_list: the list of metrics to be calculated, initialized as DEFAULT_RTP_METRICS when missing
         :return: a dictionary containing the metric value and the unit for the RTPlan
         """
-        return calculate_RTPlan_lib_metrics(self.rtp_file, self.id, metrics_list, generate_plots, output_folder)
+        self.plan_metrics = calculate_RTPlan_lib_metrics(self.rtp_file, self.id, metrics_list, generate_plots, output_folder)
+        return self.plan_metrics
 
     def calculate_RTPlan_custom_metrics(self) -> dict:
         """
         Calculates Complexity indexes from RTPlan
         :return: a dictionary containing the metric value and the unit for each RTPlan metric
         """
-        return calculate_RTPlan_custom_metrics(self.rtp_file)
+        self.plan_custom_metrics = calculate_RTPlan_custom_metrics(self.rtp_file)
+        return self.plan_custom_metrics
 
     def report(self, studies, output_folder, clean_folder=True):
         if os.path.exists(output_folder) and os.path.isdir(output_folder):
-            group_folder = output_folder + "/" + self.id + "/"
+            group_folder = os.path.join(output_folder, self.id)
             if os.path.exists(group_folder):
                 if clean_folder:
                     print("Deleting existing info inside '" + group_folder + "' folder")
@@ -125,20 +117,18 @@ class DICOMItem:
                 for study in studies:
                     try:
                         if study is StudyType.PLAN_DETAIL:
-                            out_file = group_folder + "plan_detail.csv"
-                            if self.plan_details is None:
-                                self.get_plan()
+                            out_file = os.path.join(group_folder, "plan_detail.csv")
+                            self.get_plan()
                             write_dict(dict_obj=self.plan_details, filename=out_file, header="attribute,value")
                         elif study is StudyType.PLAN_METRICS_DATA:
-                            out_file = group_folder + "plan_metrics.csv"
-                            if self.plan_metrics is None:
-                                self.calculate_RTPlan_metrics()
+                            out_file = os.path.join(group_folder, "plan_lib_metrics.csv")
+                            self.calculate_RTPlan_metrics(generate_plots=False)
                             write_dict(dict_obj=self.plan_metrics, filename=out_file, header="metric,value,unit")
                         elif study is StudyType.PLAN_METRICS_IMG:
-                            self.calculate_RTPlan_metrics(output_folder=group_folder)
+                            self.calculate_RTPlan_metrics(output_folder=group_folder, generate_plots=True)
                         elif study is StudyType.CONTROL_POINT_METRICS:
                             self.calculate_RTPlan_custom_metrics()
-                            out_file = group_folder + "plan_custom_complexity_metrics.csv"
+                            out_file = os.path.join(group_folder, "plan_custom_metrics.csv")
                             write_dict(dict_obj=self.plan_custom_metrics, filename=out_file,
                                        header="beam,attribute,list_index,metric_name,metric_value")
                         else:

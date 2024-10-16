@@ -1,17 +1,18 @@
 import copy
 import math
+import os
 import sys
 
 import matplotlib.pyplot as plt
 import numpy
 
-from complexity_lib.PyComplexityMetric import (
+from macaron_plancomplexity.PyComplexityMetric import (
     PyComplexityMetric,
     MeanAreaMetricEstimator,
     AreaMetricEstimator,
     ApertureIrregularityMetric)
 
-from complexity_lib.dicomrt import RTPlan
+from macaron_plancomplexity.dicomrt import RTPlan
 
 # These are needed to interact with the complexity library
 DEFAULT_RTP_METRICS = [
@@ -59,7 +60,7 @@ def calculate_RTPlan_lib_metrics(rtp_filename: str, patient_name: str, metrics_l
                         txt = f"Patient: {patient_name} - {metric.__name__} per control point"
                         ax.set_title(txt)
                         if output_folder is not None:
-                            img_path = output_folder + "/" + patient_name + "_" + metric.__name__ + ".png"
+                            img_path = os.path.join(output_folder, patient_name + "_" + metric.__name__ + ".png")
                         else:
                             img_path = patient_name + "_" + metric.__name__ + ".png"
                         fig.savefig(img_path, dpi=fig.dpi)

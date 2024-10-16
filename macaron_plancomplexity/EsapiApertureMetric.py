@@ -19,8 +19,8 @@ Notes
     victorgabr@gmail.com
 
 """
-from macaron_plancomplexity.complexity_lib import ApertureMetric
-from macaron_plancomplexity.complexity_lib.ApertureMetric import Aperture
+from macaron_plancomplexity import ApertureMetric
+from macaron_plancomplexity.ApertureMetric import Aperture
 
 
 class ComplexityMetric:
