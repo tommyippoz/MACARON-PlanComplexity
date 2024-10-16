@@ -53,4 +53,6 @@ University of Michigan, Radiation Oncology https://github.com/umro/Complexity
 - shutil
 - and the GitHub library above
 
-
+## Contributors
+- Margherita Zani, Silvia Calusi (AUO Careggi, Careggi Hospital, Florence, Italy)
+- Tommaso Zoppi (University of Florence)
