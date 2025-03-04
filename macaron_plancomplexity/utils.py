@@ -105,9 +105,11 @@ def extractPatientData(dicom_ob: FileDataset) -> dict:
     :return: a dictionary of patient data
     """
     try:
-        patient_data = {"ID": dicom_ob.PatientID,
-                        "Sex": dicom_ob.PatientSex,
-                        "BirthDate": dicom_ob.PatientBirthDate}
+        patient_data = {"PatientID": dicom_ob.PatientID,
+                        "StudyID": dicom_ob.StudyID,
+                        "StudyDate": dicom_ob.StudyDate,
+                        "StudyDesc": dicom_ob.StudyDescription,
+                        "PatientSex": dicom_ob.PatientSex}
     except:
         patient_data = None
     return patient_data

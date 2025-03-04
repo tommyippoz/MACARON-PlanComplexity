@@ -1,3 +1,4 @@
+import csv
 import os
 import shutil
 
@@ -11,7 +12,7 @@ from PIL import Image, ImageTk
 
 from macaron_plancomplexity.StudyType import StudyType
 from macaron_plancomplexity.DICOMItem import DICOMItem
-from macaron_plancomplexity.utils import clear_folder
+from macaron_plancomplexity.utils import clear_folder, write_dict
 
 OUT_FOLDER = ".\\output"
 
@@ -49,7 +50,7 @@ class MacaronGUI(tkinter.Frame):
     def main(cls):
         root = Tk()
         root.title('MACARON GUI')
-        root.iconbitmap('../resources/MACARON_nobackground.ico')
+        #root.iconbitmap('./MACARON_nobackground.ico')
         root.configure(background='white')
         root.resizable(False, False)
         default_font = tkinter.font.nametofont("TkDefaultFont")
@@ -79,6 +80,7 @@ class MacaronGUI(tkinter.Frame):
         self.store_data = None
         self.create_data = None
         self.clean_data = None
+        self.overall_csv = None
 
         # Build UI
         self.build_ui()
@@ -106,7 +108,7 @@ class MacaronGUI(tkinter.Frame):
 
         folder_lbl = Label(self.content, text="MACARON - Plan Complexity Calculators:", font='Helvetica 12 bold',
                            bg="white")
-        folder_lbl.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
+        folder_lbl.grid(column=0, row=0, columnspan=3, padx=10, pady=10)
 
         checkboxes = []
 
@@ -116,16 +118,11 @@ class MacaronGUI(tkinter.Frame):
             cb.grid(sticky="W", column=0, row=len(checkboxes) + 1, padx=10, pady=5)
             checkboxes.append(cb)
 
-        photo = ImageTk.PhotoImage(Image.open('../resources/MACARON.png'))
-        label = Label(self.content, image=photo, bg="white")
-        label.image = photo
-        label.grid(column=1, row=1, rowspan=len(checkboxes), padx=10, pady=5)
-
         folder_lbl = Label(self.content, text="MACARON Output:", font='Helvetica 12 bold', bg="white")
-        folder_lbl.grid(column=0, row=len(checkboxes) + 1, columnspan=2, padx=10, pady=10)
+        folder_lbl.grid(column=0, row=len(checkboxes) + 1, columnspan=3, padx=10, pady=10)
 
         self.create_data = BooleanVar(value=True)
-        db_cb = Checkbutton(self.content, text="File Output",
+        db_cb = Checkbutton(self.content, text="Output per Patient",
                             variable=self.create_data, onvalue=True, bg="white")
         db_cb.grid(column=0, row=len(checkboxes) + 3, padx=10, pady=10)
 
@@ -134,9 +131,14 @@ class MacaronGUI(tkinter.Frame):
                                     variable=self.clean_data, onvalue=True, bg="white")
         data_clean_cb.grid(column=1, row=len(checkboxes) + 3, padx=10, pady=10)
 
+        self.overall_csv = BooleanVar(value=True)
+        summary_cb = Checkbutton(self.content, text="Summary File",
+                            variable=self.overall_csv, onvalue=True, bg="white")
+        summary_cb.grid(column=2, row=len(checkboxes) + 3, padx=10, pady=10)
+
         self.run_button = Button(self.content, text="Run Analysis", bg="white",
                                  command=self.run_analysis, state=DISABLED)
-        self.run_button.grid(column=0, row=len(checkboxes) + 4, columnspan=2, padx=10, pady=10)
+        self.run_button.grid(column=0, row=len(checkboxes) + 4, columnspan=3, padx=10, pady=10)
 
     def select_folder(self):
         folder = askdirectory(initialdir="./")
@@ -182,24 +184,37 @@ class MacaronGUI(tkinter.Frame):
             clean_folder = True
         else:
             clean_folder = False
+        summary = []
         for patient in self.patients:
             study_index = 1
+            patient_dict = {}
             for [name, study] in studies:
                 popup.update()
                 info_label['text'] = "Processing '" + patient.get_name() + "' for study " + \
                                      name + "' [" + str(study_index) + "/" + str(len(studies)) + "]"
                 if self.create_data.get() is True:
-                    patient.report(studies=[study], output_folder=OUT_FOLDER, clean_folder=clean_folder)
+                    summary_dict = patient.report_macaron(studies=[study], output_folder=OUT_FOLDER,
+                                                          clean_folder=clean_folder)
+                    patient_dict.update(summary_dict)
                     print("Results of '" + str(study) + "' for patient '" + patient.get_name() +
                           "' were computed and stored as TXT/CSV files or Images")
                 progress += progress_step
                 progress_var.set(progress)
                 clean_folder = False
                 study_index = study_index + 1
+            summary.append(patient_dict)
 
         progress_bar.stop()
         self.run_button['state'] = "normal"
         popup.destroy()
+
+        # Saving Summary file
+        keys = summary[0].keys()
+        with open(os.path.join(OUT_FOLDER, "metric_all_patients.csv"), 'w', newline='') as output_file:
+            dict_writer = csv.DictWriter(output_file, keys)
+            dict_writer.writeheader()
+            for patient_dict in summary:
+                dict_writer.writerow(patient_dict)
 
 
 if __name__ == "__main__":
@@ -209,6 +224,14 @@ if __name__ == "__main__":
         os.makedirs(OUT_FOLDER)
     else:
         clear_folder(OUT_FOLDER)
-    shutil.copyfile('../resources/metric_explanations.txt', os.path.join(OUT_FOLDER, "output_explanations.txt"))
+
+    with open(os.path.join(OUT_FOLDER, "output_explanation.txt"), "w") as f:
+        f.write("The tool computes the following custom metrics, which are printed in a CSV:\n\n" +
+                "per Beam: \n\t- MUbeam\n\t- MUfinalweight \n\t- M     \n\t- MCS     \n\t- MCSV     \n\t- MFC     \n\t- BI     \n\t- avgApertureLessThan1cm     \n\t- yDiffLessThan1cm     \n\t- SAS2 \n\t- SAS5     \n\t- SAS10 \n\t- SAS20" +
+                "\nper Plan:     \n\t- MUplan     \n\t- Mplan     \n\t- MCSplan     \n\t- MCSVplan     \n\t- MFCplan     \n\t- PI     \n\t- nCP     \n\t- avgApertureLessThan1cm \n\t- yDiffLessThan1cm" +
+                "Moreover, it plots the following graphs, and the corresponding CSV file:" +
+                "\n\t- ApertureIrregularityMetric     \n\t- AreaMetricEstimator \n\t- MeanAreaMetricEstimator     \n\t- PyComplexityMetric \n" +
+                "using the library at https://github.com/victorgabr/ApertureComplexity, from Victor Gabriel Leandro Alves, D.Sc. University of Michigan, Radiation Oncology https://github.com/umro/Complexity" +
+                "\n\nDependencies of the Python tool: \n\t- numpy     \n\t- matplotlib     \n\t- pydicom     \n\t- shutil     \n\t- and the GitHub library above")
 
     MacaronGUI.main()

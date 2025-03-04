@@ -93,7 +93,8 @@ class DICOMItem:
         :param metrics_list: the list of metrics to be calculated, initialized as DEFAULT_RTP_METRICS when missing
         :return: a dictionary containing the metric value and the unit for the RTPlan
         """
-        self.plan_metrics = calculate_RTPlan_lib_metrics(self.rtp_file, self.id, metrics_list, generate_plots, output_folder)
+        self.plan_metrics, plan_imgs = calculate_RTPlan_lib_metrics(self.rtp_file, self.id, metrics_list,
+                                                                    generate_plots, output_folder)
         return self.plan_metrics
 
     def calculate_RTPlan_custom_metrics(self) -> dict:
@@ -104,7 +105,7 @@ class DICOMItem:
         self.plan_custom_metrics = calculate_RTPlan_custom_metrics(self.rtp_file)
         return self.plan_custom_metrics
 
-    def report(self, studies, output_folder, clean_folder=True):
+    def report_macaron(self, studies, output_folder: str, clean_folder: bool = True):
         if os.path.exists(output_folder) and os.path.isdir(output_folder):
             group_folder = os.path.join(output_folder, self.id)
             if os.path.exists(group_folder):
@@ -114,28 +115,41 @@ class DICOMItem:
             else:
                 os.makedirs(group_folder)
             if (studies is not None) and (len(studies) > 0):
+                overall_dict = {}
                 for study in studies:
-                    try:
-                        if study is StudyType.PLAN_DETAIL:
-                            out_file = os.path.join(group_folder, "plan_detail.csv")
-                            self.get_plan()
-                            write_dict(dict_obj=self.plan_details, filename=out_file, header="attribute,value")
-                        elif study is StudyType.PLAN_METRICS_DATA:
-                            out_file = os.path.join(group_folder, "plan_lib_metrics.csv")
-                            self.calculate_RTPlan_metrics(generate_plots=False)
-                            write_dict(dict_obj=self.plan_metrics, filename=out_file, header="metric,value,unit")
-                        elif study is StudyType.PLAN_METRICS_IMG:
-                            self.calculate_RTPlan_metrics(output_folder=group_folder, generate_plots=True)
-                        elif study is StudyType.CONTROL_POINT_METRICS:
-                            self.calculate_RTPlan_custom_metrics()
-                            out_file = os.path.join(group_folder, "plan_custom_metrics.csv")
-                            write_dict(dict_obj=self.plan_custom_metrics, filename=out_file,
-                                       header="beam,attribute,list_index,metric_name,metric_value")
+                    # try:
+                    if study is StudyType.PLAN_DETAIL:
+                        out_file = os.path.join(group_folder, "plan_detail.csv")
+                        self.get_plan()
+                        write_dict(dict_obj=self.plan_details, filename=out_file, header="attribute,value")
+                        overall_dict.update(dict(("plan_details." + key, value) for (key, value) in self.plan_details.items()))
+                    elif study is StudyType.PLAN_METRICS_DATA:
+                        out_file = os.path.join(group_folder, "plan_lib_metrics.csv")
+                        self.calculate_RTPlan_metrics(generate_plots=False)
+                        write_dict(dict_obj=self.plan_metrics, filename=out_file, header="metric,value,unit")
+                        overall_dict.update(dict(("plan_metrics." + key, value[0]) for (key, value) in self.plan_metrics.items()))
+                    elif study is StudyType.PLAN_METRICS_IMG:
+                        self.calculate_RTPlan_metrics(output_folder=group_folder, generate_plots=True)
+                    elif study is StudyType.CONTROL_POINT_METRICS:
+                        self.calculate_RTPlan_custom_metrics()
+                        out_file = os.path.join(group_folder, "plan_custom_metrics.csv")
+                        write_dict(dict_obj=self.plan_custom_metrics, filename=out_file,
+                                   header="beam,attribute,list_index,metric_name,metric_value")
+                        overall_dict.update(dict(("cp_beam1." + key, value) for (key, value) in self.plan_custom_metrics["Beam1"].items()))
+                        overall_dict.pop('cp_beam1.Sequence', None)
+                        if "Beam2" in self.plan_custom_metrics.keys():
+                            overall_dict.update(dict(("cp_beam2." + key, value) for (key, value) in self.plan_custom_metrics["Beam2"].items()))
                         else:
-                            print("Cannot recognize study '" + study + "' to report about")
-                    except:
-                        print("Error while processing study")
+                            overall_dict.update(dict(("cp_beam2." + key, None) for (key, value) in self.plan_custom_metrics["Beam1"].items()))
+                        overall_dict.pop('cp_beam2.Sequence', None)
+                        overall_dict.update(dict(("cp_plan." + key, value) for (key, value) in self.plan_custom_metrics["plan"].items()))
+                    else:
+                        print("Cannot recognize study '" + study + "' to report about")
+                    # except:
+                    #    print("Error while processing study")
+                return overall_dict
             else:
                 print("No valid studies to report. Please input a list containing DICOMStudy objects")
         else:
             print("Folder '" + output_folder + "' does not exist or is not a folder")
+        return {}
